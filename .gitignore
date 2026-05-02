@@ -1,0 +1,5 @@
+build/
+.qtcreator/
+parser_test.txt
+test_output.txt
+CMakeUserPresets.json
