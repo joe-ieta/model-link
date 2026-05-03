@@ -11,7 +11,39 @@
 - 断点续传，自动处理服务端不支持 Range 的情况
 - 下载全部、下载选中、单行按钮下载单个文件
 - 下载文件自动保存到系统下载目录的 `model_link_<模型标识>` 文件夹
-- 下载全部会清空当前模型下载目录；下载选中/单文件会复用目录并保留已下载文件
+- 支持命令行模式，无需 GUI 也可下载模型
+
+## 命令行使用
+
+```bash
+# GGUF 优先下载（默认行为）
+ModelLink Qwen/Qwen3.6-27B
+
+# 下载所有文件
+ModelLink Qwen/Qwen3.6-27B -a
+
+# 仅列出文件，不下载
+ModelLink Qwen/Qwen3.6-27B -l
+
+# 指定线程数
+ModelLink Qwen/Qwen3.6-27B -t 5
+
+# 指定输出目录
+ModelLink Qwen/Qwen3.6-27B -o /path/to/models
+
+# 无参数启动图形界面
+ModelLink
+```
+
+| 选项 | 说明 |
+|------|------|
+| `<model>` | 模型标识 (如 `Qwen/Qwen3.6-27B`) 或模型链接 |
+| `--gguf` | 仅下载 GGUF 格式文件 |
+| `-a, --all` | 下载所有文件 |
+| `-o, --output <dir>` | 指定输出目录 |
+| `-t, --threads <n>` | 并发线程数 (1-8，默认 3) |
+| `-l, --list` | 仅列出文件，不下载 |
+| `-h, --help` | 显示帮助 |
 
 ## 构建
 
