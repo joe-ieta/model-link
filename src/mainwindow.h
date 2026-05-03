@@ -4,13 +4,17 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QProgressBar>
+#include <QSpinBox>
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QElapsedTimer>
 #include <QMap>
+#include <QSet>
+#include <QStyle>
 #include "downloadmanager.h"
 #include "modelparser.h"
+#include "modelservice.h"
 
 class MainWindow : public QMainWindow
 {
@@ -20,17 +24,18 @@ public:
 
 private slots:
     void onFetchFilesClicked();
-    void onDownloadClicked();
-    void onOpenFolderClicked();
-    void onFileListItemClicked(QListWidgetItem *item);
+    void onDownloadAllClicked();
+    void onDownloadSelectedClicked();
+    void onDownloadItemClicked(int fileIdx);
     void onFileDoubleClicked(QListWidgetItem *item);
+    void onOpenFolderClicked();
     void onJsonFetched(const QByteArray &data, const QString &context);
     void onJsonFetchError(const QString &error);
 
 private:
     void setupUi();
+    void applyStyleSheet();
     void setUiEnabled(bool enabled);
-    bool checkFileOverwrite(const QString &filePath);
     void tryFetchFromModelscope();
     void tryFetchFromHuggingface();
     void filterGgufFiles(QStringList &names, QList<qint64> &sizes);
@@ -42,11 +47,16 @@ private:
     void onSlotError(int fileIdx, const QString &error);
     void updateOverallProgress();
     void onBatchComplete();
+    void updateItemWidgets();
+    void populateFileList(ModelParser::Source source, const QStringList &names, const QList<qint64> &sizes, bool allowGgufFilter = true);
+    void chooseModelIdSource();
 
     QLineEdit *m_urlEdit;
     QPushButton *m_fetchBtn;
-    QPushButton *m_downloadBtn;
+    QPushButton *m_downloadAllBtn;
+    QPushButton *m_downloadSelBtn;
     QPushButton *m_openFolderBtn;
+    QSpinBox *m_threadSpin;
     QProgressBar *m_progressBar;
     QLabel *m_statusLabel;
     QListWidget *m_fileList;
@@ -55,18 +65,22 @@ private:
 
     QStringList m_fileNames;
     QList<qint64> m_fileSizes;
-    bool m_fileListMode;
     ModelParser::Source m_downloadSource;
     bool m_ggufMode;
+    bool m_discoveringModelId;
+    ModelService::FileList m_modelscopeFiles;
+    ModelService::FileList m_huggingfaceFiles;
 
-    // Concurrent download pool
     QList<DownloadManager*> m_pool;
-    QMap<DownloadManager*, int> m_activeMap;   // mgr -> fileIndex
-    QList<int> m_pendingIndices;               // waiting file indices
+    QMap<DownloadManager*, int> m_activeMap;
+    QList<int> m_pendingIndices;
 
     QMap<int, qint64> m_slotReceived;
     QMap<int, qint64> m_slotTotal;
     QStringList m_itemBaseTexts;
+    QList<int> m_currentTaskIndices;
+    QSet<int> m_successIndices;
+    QSet<int> m_failedIndices;
 
     int m_maxConcurrent;
     int m_totalFiles;

@@ -9,6 +9,15 @@ target_include_directories(test_modelparser PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_modelparser PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME ModelParserTest COMMAND test_modelparser)
 
+# ---- ModelService Tests ----
+add_executable(test_modelservice
+    test_modelservice.cpp
+    ${CMAKE_SOURCE_DIR}/src/modelservice.cpp
+)
+target_include_directories(test_modelservice PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_modelservice PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME ModelServiceTest COMMAND test_modelservice)
+
 # ---- Download Integration Tests ----
 add_executable(test_download
     test_download.cpp

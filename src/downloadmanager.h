@@ -33,6 +33,7 @@ signals:
 
 private slots:
     void onReadyRead();
+    void onMetaDataChanged();
     void onFinished();
     void onErrorOccurred(QNetworkReply::NetworkError error);
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
@@ -50,6 +51,7 @@ private:
     qint64 m_existingBytes;
     QElapsedTimer m_startTime;
     QVector<QPair<qint64, qint64>> m_speedSamples;  // (elapsedMs, bytesReceived)
+    bool m_resumeResponseChecked;
     bool m_cancelled;
     bool m_fetchMode;
     bool m_resumeMode;

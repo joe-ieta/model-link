@@ -12,6 +12,7 @@ DownloadManager::DownloadManager(QObject *parent)
     , m_reply(nullptr)
     , m_outputFile(nullptr)
     , m_existingBytes(0)
+    , m_resumeResponseChecked(false)
     , m_cancelled(false)
     , m_fetchMode(false)
     , m_resumeMode(false)
@@ -40,6 +41,7 @@ void DownloadManager::startDownload(const QUrl &url, const QString &savePath)
     m_savePath = savePath;
     m_partPath = savePath + ".part";
     m_existingBytes = 0;
+    m_resumeResponseChecked = false;
     m_speedSamples.clear();
 
     // Check for existing partial download (resume support)
@@ -65,6 +67,8 @@ void DownloadManager::startDownloadInternal(const QUrl &url, const QString &save
         emit statusMessage(QString("从断点续传 (已有 %1 bytes)...").arg(resumeFrom));
     }
 
+    QDir().mkpath(QFileInfo(m_partPath).absolutePath());
+
     // Open file for writing (append if resuming)
     if (resumeFrom > 0) {
         m_outputFile = new QFile(m_partPath);
@@ -87,6 +91,7 @@ void DownloadManager::startDownloadInternal(const QUrl &url, const QString &save
     m_speedSamples.clear();
 
     connect(m_reply, &QNetworkReply::readyRead, this, &DownloadManager::onReadyRead);
+    connect(m_reply, &QNetworkReply::metaDataChanged, this, &DownloadManager::onMetaDataChanged);
     connect(m_reply, &QNetworkReply::finished, this, &DownloadManager::onFinished);
     connect(m_reply, &QNetworkReply::errorOccurred, this, &DownloadManager::onErrorOccurred);
     connect(m_reply, &QNetworkReply::downloadProgress, this, &DownloadManager::onDownloadProgress);
@@ -125,10 +130,45 @@ void DownloadManager::fetchJson(const QUrl &url)
 
     m_reply = m_nam->get(request);
     connect(m_reply, &QNetworkReply::readyRead, this, &DownloadManager::onReadyRead);
+    connect(m_reply, &QNetworkReply::metaDataChanged, this, &DownloadManager::onMetaDataChanged);
     connect(m_reply, &QNetworkReply::finished, this, &DownloadManager::onFinished);
     connect(m_reply, &QNetworkReply::errorOccurred, this, &DownloadManager::onErrorOccurred);
 
     emit statusMessage("获取文件列表...");
+}
+
+void DownloadManager::onMetaDataChanged()
+{
+    if (!m_reply || m_fetchMode || m_resumeResponseChecked || m_existingBytes <= 0) return;
+
+    QVariant statusAttr = m_reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (!statusAttr.isValid()) return;
+
+    m_resumeResponseChecked = true;
+    int statusCode = statusAttr.toInt();
+
+    if (statusCode == 206) {
+        return;
+    }
+
+    if (statusCode == 200) {
+        // Server ignored Range; restart this transfer from zero to avoid corrupt append.
+        if (m_outputFile) {
+            m_outputFile->close();
+            delete m_outputFile;
+            m_outputFile = nullptr;
+        }
+        QFile::remove(m_partPath);
+        m_existingBytes = 0;
+        m_speedSamples.clear();
+        m_startTime.restart();
+
+        m_outputFile = new QFile(m_partPath);
+        if (!m_outputFile->open(QIODevice::WriteOnly)) {
+            emit downloadError("无法重新创建文件: " + m_partPath);
+            cleanupDownload();
+        }
+    }
 }
 
 void DownloadManager::onReadyRead()
@@ -203,7 +243,11 @@ void DownloadManager::onErrorOccurred(QNetworkReply::NetworkError error)
     if (!m_reply || m_cancelled) return;
 
     if (m_fetchMode) {
-        emit jsonFetchError(m_reply->errorString());
+        QString errorString = m_reply->errorString();
+        m_reply->deleteLater();
+        m_reply = nullptr;
+        m_fetchMode = false;
+        emit jsonFetchError(errorString);
     } else {
         emit downloadError(m_reply->errorString());
         cleanupDownload();

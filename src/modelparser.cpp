@@ -1,6 +1,7 @@
 #include "modelparser.h"
 #include <QStandardPaths>
 #include <QRegularExpression>
+#include <QUrlQuery>
 
 ModelParser::ModelInfo ModelParser::parseInput(const QString &input)
 {
@@ -132,17 +133,21 @@ QUrl ModelParser::huggingfaceApiUrl(const QString &ns, const QString &model)
 
 QUrl ModelParser::modelscopeDownloadUrl(const QString &ns, const QString &model, const QString &file)
 {
-    return QUrl(QString(
-        "https://modelscope.cn/api/v1/models/%1/%2/repo"
-        "?Revision=master&FilePath=%3"
-    ).arg(ns, model, file));
+    QUrl url(QString("https://modelscope.cn/api/v1/models/%1/%2/repo").arg(ns, model));
+    QUrlQuery query;
+    query.addQueryItem("Revision", "master");
+    query.addQueryItem("FilePath", file);
+    url.setQuery(query);
+    return url;
 }
 
 QUrl ModelParser::huggingfaceDownloadUrl(const QString &ns, const QString &model, const QString &file)
 {
-    return QUrl(QString(
-        "https://huggingface.co/%1/%2/resolve/main/%3"
-    ).arg(ns, model, file));
+    QUrl url;
+    url.setScheme("https");
+    url.setHost("huggingface.co");
+    url.setPath(QString("/%1/%2/resolve/main/%3").arg(ns, model, file));
+    return url;
 }
 
 QString ModelParser::defaultDownloadDir()
